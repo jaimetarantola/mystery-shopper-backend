@@ -137,3 +137,46 @@ def template_builder():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+@app.route('/save-template', methods=['POST'])
+def save_template():
+    if 'email' not in session:
+        return jsonify({"error": "You must be logged in"}), 401
+
+    conn = None
+    try:
+        data = request.get_json()
+        user_email = session['email']
+
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+
+        # Get client_id and company_name
+        cursor.execute("SELECT client_id, company_name FROM clients WHERE LOWER(email) = ?", user_email)
+        client = cursor.fetchone()
+        if not client:
+            return jsonify({"error": "Client not found"}), 404
+
+        client_id, company_name = client
+
+        # Count how many templates this client already has
+        cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
+        count = cursor.fetchone()[0]
+
+        template_name = f"{company_name}{count + 1}"
+
+        cursor.execute("""
+            INSERT INTO templates (client_id, template_name, template_data, created_at)
+            VALUES (?, ?, ?, GETDATE())
+        """, (client_id, template_name, str(data)))
+
+        conn.commit()
+        return jsonify({"message": f"Template '{template_name}' saved!"}), 201
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
