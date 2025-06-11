@@ -151,6 +151,10 @@ def save_template():
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
 
+print("Incoming data:", data)
+print("Client ID:", client_id)
+print("Template name:", template_name)
+
         # Get client_id and company_name
         cursor.execute("SELECT client_id, company_name FROM clients WHERE LOWER(email) = ?", user_email)
         client = cursor.fetchone()
@@ -180,8 +184,5 @@ def save_template():
         if conn:
             conn.close()
 
-print("Incoming data:", data)
-print("Client ID:", client_id)
-print("Template name:", template_name)
 
 
