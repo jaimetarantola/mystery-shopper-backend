@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Client Login</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f6f8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .login-container {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+    h2 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0 20px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+    .error {
+      color: red;
+      margin-top: 10px;
+      text-align: center;
+    }
+    .debug {
+      font-size: 12px;
+      margin-top: 20px;
+      color: gray;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <h2>Client Login</h2>
+    <form id="loginForm">
+      <input type="email" id="email" placeholder="Email" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <button type="submit">Log In</button>
+    </form>
+    <div id="errorMessage" class="error"></div>
+    <div id="debugMessage" class="debug"></div>
+  </div>
+
+  <script>
+    document.getElementById("loginForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const errorDiv = document.getElementById("errorMessage");
+      const debugDiv = document.getElementById("debugMessage");
+      errorDiv.textContent = "";
+      debugDiv.textContent = "Submitting login request...";
+
+      try {
+        const response = await fetch("/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await response.json();
+        debugDiv.textContent = `Response Status: ${response.status}\nResponse: ${JSON.stringify(data)}`;
+
+        if (response.ok && data.message === "Login successful") {
+          debugDiv.textContent += "\nRedirecting to /dashboard...";
+          window.location.href = "/dashboard";
+        } else {
+          errorDiv.textContent = data.error || "Login failed.";
+        }
+      } catch (err) {
+        errorDiv.textContent = "Something went wrong.";
+        debugDiv.textContent = "Error: " + err;
+      }
+    });
+  </script>
+</body>
+</html>

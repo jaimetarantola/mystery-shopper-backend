@@ -1,0 +1,107 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Welcome | Mystery Shopper Portal</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f8fc;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+
+    header {
+      background-color: #2c3e50;
+      color: white;
+      padding: 30px 20px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2.5em;
+    }
+
+    .flash {
+      background-color: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+      border-radius: 5px;
+      width: 60%;
+      margin: 20px auto;
+      padding: 10px;
+    }
+
+    .content {
+      padding: 40px 20px;
+    }
+
+    .content p {
+      max-width: 700px;
+      margin: 0 auto 20px;
+      font-size: 1.1em;
+      color: #333;
+    }
+
+    .button-group {
+      margin-top: 30px;
+    }
+
+    .button-group a {
+      display: inline-block;
+      background-color: #3498db;
+      color: white;
+      text-decoration: none;
+      padding: 12px 24px;
+      margin: 10px;
+      font-weight: bold;
+      border-radius: 6px;
+      transition: background-color 0.3s ease;
+    }
+
+    .button-group a:hover {
+      background-color: #2c80b4;
+    }
+
+    footer {
+      margin-top: 60px;
+      padding: 20px;
+      font-size: 0.9em;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Welcome to the Mystery Shopper Client Portal</h1>
+  </header>
+
+  <!-- Flash Message -->
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="flash">
+        {{ messages[0] }}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="content">
+    <p>We're excited to help you gather powerful insights about your business through mystery shopping.</p>
+    <p>As a registered client, you can build custom shop templates, view past submissions, and manage your evaluations all in one place.</p>
+    <p>Get started by creating an account or logging in to your dashboard.</p>
+
+    <div class="button-group">
+      <a href="/register-page">Create an Account</a>
+      <a href="/login-page">Log In</a>
+    </div>
+  </div>
+
+  <footer>
+    &copy; 2025 Mystery Shopper Insights. All rights reserved.
+  </footer>
+
+</body>
+</html>
