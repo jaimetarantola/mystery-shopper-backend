@@ -180,3 +180,8 @@ def save_template():
         if conn:
             conn.close()
 
+print("Incoming data:", data)
+print("Client ID:", client_id)
+print("Template name:", template_name)
+
+
