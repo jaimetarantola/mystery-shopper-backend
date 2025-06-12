@@ -154,7 +154,7 @@ def save_template():
 
         client_id, company_name = client
 
-        # Count selected questions and detect custom
+        # Analyze submission
         selected_questions = 0
         has_custom = False
         for section, questions in template_data.items():
@@ -163,38 +163,37 @@ def save_template():
                     has_custom = True
                 selected_questions += 1
 
+        qualifies_as_recommended = is_recommended_clicked and not has_custom and selected_questions >= 90
         recommended_name = f"{company_name}Recommended Template"
 
-        # Check if client already has a recommended template
+        # Check for existing recommended
         cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ? AND template_name = ?", client_id, recommended_name)
-        has_recommended_already = cursor.fetchone()[0] > 0
+        has_recommended = cursor.fetchone()[0] > 0
 
-        # Determine if this submission qualifies as recommended
-        qualifies_as_recommended = is_recommended_clicked and not has_custom and selected_questions >= 90
+        # BLOCK: if this qualifies as recommended and already exists
+        if qualifies_as_recommended and has_recommended:
+            return jsonify({"error": "You already have a Recommended Template saved."}), 409
 
-        # 🔒 Enforce restriction: Do NOT allow saving any recommended template again
-        if qualifies_as_recommended and has_recommended_already:
-            return jsonify({"error": "You already have a Recommended Template saved. You cannot save another."}), 409
-
-        # If user clicked recommended, but it does NOT qualify — reject saving altogether
+        # BLOCK: if user clicked recommended but altered the default (not qualified)
         if is_recommended_clicked and not qualifies_as_recommended:
             return jsonify({"error": "You modified the Recommended Template. Please deselect the Recommended button and save as a custom template."}), 409
 
-        # If all good, proceed with saving
+        # CASE: save as Recommended Template
         if qualifies_as_recommended:
             template_name = recommended_name
+
+        # CASE: all others = custom template
         else:
             cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
             template_count = cursor.fetchone()[0] + 1
             template_name = f"{company_name}{template_count}"
 
-        # Save template
+        # Save to DB
         template_json = json.dumps(template_data)
-        cursor.execute(""" 
+        cursor.execute("""
             INSERT INTO templates (client_id, template_name, template_data, created_at)
             VALUES (?, ?, ?, ?)
         """, (client_id, template_name, template_json, datetime.now()))
-
         conn.commit()
         return jsonify({"message": f"Template '{template_name}' saved!"}), 201
 
