@@ -4,86 +4,108 @@
   <meta charset="UTF-8">
   <title>Build Your Shop Template</title>
   <style>
-    * { box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
-      padding: 60px 20px;
       background: linear-gradient(to right, #f2f6fc, #dbe9ff);
+      margin: 0;
+      padding: 40px 0;
     }
     .form-wrapper {
-      max-width: 800px;
+      max-width: 900px;
       margin: auto;
-    }
-    .form-card {
       background-color: white;
-      border-radius: 12px;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-      padding: 40px 30px;
+      padding: 30px 40px;
+      border-radius: 10px;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.1);
     }
-    h2, h3 {
+    h2 {
       color: #2c3e50;
+      text-align: center;
     }
-    .section {
-      margin-bottom: 30px;
-    }
-    .section h3 {
-      margin-bottom: 10px;
-    }
-    .question {
-      margin-bottom: 10px;
+    h3 {
+      margin-top: 30px;
+      color: #2c3e50;
     }
     label {
-      font-weight: 500;
-      color: #34495e;
-      margin-left: 8px;
+      display: block;
+      margin: 8px 0;
     }
     .instructions {
-      font-size: 14px;
+      font-size: 0.95em;
       color: #555;
-      margin-bottom: 10px;
+      margin-bottom: 20px;
     }
-    input[type="text"] {
+    .section {
+      margin-bottom: 25px;
+    }
+    .custom-question-inputs input {
+      display: block;
+      margin: 6px 0;
+      padding: 6px;
       width: 100%;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      margin-bottom: 10px;
-    }
-    button {
-      width: 100%;
-      padding: 12px;
-      background-color: #4a90e2;
-      border: none;
-      color: white;
-      font-size: 16px;
-      font-weight: bold;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-    }
-    button:hover {
-      background-color: #3b7dc4;
-    }
-    .add-btn {
-      background-color: #ecf0f1;
-      color: #2c3e50;
-      font-size: 14px;
-      margin-top: 5px;
-      padding: 6px 12px;
-      border-radius: 6px;
-      width: auto;
     }
     .custom-question-inputs {
       margin-top: 10px;
     }
+    button, .add-btn {
+      display: inline-block;
+      background-color: #4a90e2;
+      color: white;
+      padding: 10px 16px;
+      border: none;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    .add-btn {
+      background-color: #ecf0f1;
+      color: #2c3e50;
+      margin-top: 10px;
+    }
+    button:hover, .add-btn:hover {
+      background-color: #3b7dc4;
+    }
+    .submit-btn {
+      margin-top: 30px;
+      width: 100%;
+      font-size: 16px;
+    }
   </style>
+</head>
+<body>
+  <div class="form-wrapper">
+    <h2>Build Your Custom Shop Template</h2>
+    <button type="button" onclick="loadRecommendedTemplate()">Load Recommended Template</button>
+    <p class="instructions">
+      Use this form to create a shop template. Required sections are preselected. You may also add your own custom questions in each section.<br>
+      The shopper will be required to describe and summarize their experience after each section.
+    </p>
+
+    <form id="templateForm">
+      <!-- REPLACE THIS COMMENT WITH THE FULL CONTENT FROM YOUR ORIGINAL FORM STRUCTURE -->
+
+      <!-- Example format for a section -->
+      <div class="section">
+        <h3>Agent & Visit Information</h3>
+        <label><input type="checkbox" name="agent_phoned"> Agent Phoned</label>
+        <label><input type="checkbox" name="date_of_call"> Date of Call</label>
+        <!-- Add the rest of the section's fields here -->
+        <div class="custom-question-inputs" id="agent_visit_custom"></div>
+        <button type="button" class="add-btn" onclick="addCustomQuestion('agent_visit_custom')">+ Add Custom Question</button>
+      </div>
+
+      <!-- Repeat similar blocks for each section from your original form -->
+
+      <button type="submit" class="submit-btn">Save Template</button>
+    </form>
+  </div>
+
   <script>
     function addCustomQuestion(sectionId) {
       const container = document.getElementById(sectionId);
       const count = container.querySelectorAll('input[type="text"]').length;
       if (count >= 5) return;
-
       const input = document.createElement("input");
       input.type = "text";
       input.name = `${sectionId}_custom${count + 1}`;
@@ -92,20 +114,17 @@
     }
 
     function loadRecommendedTemplate() {
-      const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-      checkboxes.forEach(cb => {
-        cb.checked = true;
-      });
+      document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
     }
 
-    document.addEventListener("DOMContentLoaded", function() {
-      const form = document.getElementById("templateForm");
-      form.addEventListener("submit", function(e) {
+    document.addEventListener("DOMContentLoaded", function () {
+      document.getElementById("templateForm").addEventListener("submit", function (e) {
         e.preventDefault();
-        const formData = new FormData(form);
+        const formData = new FormData(this);
         const entries = {};
         for (let [key, value] of formData.entries()) {
-          entries[key] = value;
+          if (!entries[key]) entries[key] = [];
+          entries[key].push(value);
         }
         fetch("/save-template", {
           method: "POST",
@@ -114,35 +133,17 @@
           },
           body: JSON.stringify(entries)
         })
-        .then(response => response.json())
+        .then(res => res.json())
         .then(data => {
           alert(data.message || data.error);
           if (data.message) window.location.href = "/dashboard";
         })
-        .catch(error => {
+        .catch(err => {
           alert("Error saving template.");
-          console.error(error);
+          console.error(err);
         });
       });
     });
   </script>
-</head>
-<body>
-  <div class="form-wrapper">
-    <div class="form-card">
-      <h2>Build Your Custom Shop Template</h2>
-      <button type="button" onclick="loadRecommendedTemplate()" style="margin-bottom: 20px; background-color: #27ae60; color: white; padding: 10px 16px; font-size: 14px; border: none; border-radius: 6px; cursor: pointer;">
-        Load Recommended Template
-      </button>
-      <p class="instructions">
-        Use this form to create a shop template. Required sections are preselected. You may also add your own custom questions in each section.<br>
-        The shopper will be required to describe and summarize their experience after each section.
-      </p>
-      <!-- INSERT ORIGINAL SECTIONS HERE -->
-      <!-- Copy everything from the original HTML between <form id="templateForm"> and </form> -->
-      <!-- Already included in earlier file, too long to paste fully again here, but should be restored verbatim -->
-      <!-- Just make sure to place the <form id="templateForm">...</form> body from original HTML here -->
-    </div>
-  </div>
 </body>
 </html>
