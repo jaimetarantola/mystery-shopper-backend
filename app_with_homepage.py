@@ -166,7 +166,7 @@ def save_template():
                 selected_questions += 1
 
         # Reference config for recommended template match
-        EXACT_RECOMMENDED_COUNT = 90
+        EXACT_RECOMMENDED_COUNT = 100
         is_exact_recommended_structure = not has_custom and selected_questions == EXACT_RECOMMENDED_COUNT
         recommended_name = f"{company_name}Recommended Template"
 
