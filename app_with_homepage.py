@@ -159,4 +159,20 @@ def save_template():
         # Save template
         template_json = json.dumps(data)
         cursor.execute("""
-            INSERT INTO temp
+            INSERT INTO templates (client_id, template_name, template_data, created_at)
+            VALUES (?, ?, ?, ?)
+        """, (client_id, template_name, template_json, datetime.now()))
+
+        conn.commit()
+        return jsonify({"message": f"Template '{template_name}' saved!"}), 201
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
