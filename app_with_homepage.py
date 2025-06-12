@@ -1,28 +1,136 @@
-
-from flask import Flask, render_template, request, jsonify, session, redirect
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session
+from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
 import pyodbc
+import traceback
 import json
 from datetime import datetime
-import traceback
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key'
+app.secret_key = 'supersecretkey123'
+CORS(app)
 
-# Replace with actual DB info
-conn_str = 'Driver={ODBC Driver 17 for SQL Server};Server=your_server;Database=your_db;UID=your_user;PWD=your_password'
+# SQL Server config
+server = 'DESKTOP-GANGRVA'
+database = 'mystery_shopper'
+conn_str = (
+    'DRIVER={ODBC Driver 17 for SQL Server};'
+    f'SERVER={server};'
+    f'DATABASE={database};'
+    'Trusted_Connection=yes;'
+)
 
+# Home
 @app.route('/')
-def homepage():
-    return "<h1>Welcome to the Mystery Shopper App</h1><p><a href='/shop-template-builder'>Build Template</a></p>"
+def home():
+    return render_template('Client Homepage.html')
+
+# Pages
+@app.route('/register-page')
+def register_page():
+    return render_template('Client_Account.html')
+
+@app.route('/login-page')
+def login_page():
+    return render_template('Client Login.html')
 
 @app.route('/dashboard')
 def dashboard():
-    return "<h2>Client Dashboard</h2><p>More features coming soon...</p>"
+    if 'email' not in session:
+        return redirect(url_for('home'))
+    return render_template('client_dashboard_mockup.html', company_name=session.get('company_name'))
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('home'))
+
+@app.route('/shop-templates')
+def shop_templates():
+    if 'email' not in session:
+        return redirect(url_for('login_page'))
+    return render_template('shop_templates_home.html')
 
 @app.route('/shop-template-builder')
 def shop_template_builder():
-    return render_template('Client_Shop_Template_Builder_FINAL_STYLE.html')
+    if 'email' not in session:
+        return redirect(url_for('login_page'))
+    return render_template('Client Shop Template Builder.html')
 
+# Register
+@app.route('/register', methods=['POST'])
+def register():
+    conn = None
+    try:
+        data = request.get_json()
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+
+        email = data['email'].strip().lower()
+        cursor.execute("SELECT * FROM clients WHERE LOWER(email) = ?", email)
+        if cursor.fetchone():
+            return jsonify({"error": "Email already registered"}), 409
+
+        password = data.get('password')
+        if not password:
+            return jsonify({"error": "Password is required"}), 400
+
+        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+
+        cursor.execute("""
+            INSERT INTO clients (
+                company_name, company_address, company_city, company_state, company_zip,
+                client_first_name, client_last_name, email, client_phone, password_hash
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data['company_name'], data['company_address'], data['company_city'], data['company_state'], data['company_zip'],
+            data['client_first_name'], data['client_last_name'], email, data['client_phone'], hashed_password
+        ))
+
+        conn.commit()
+        return jsonify({"message": "Client registered successfully"}), 201
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+# ✅ Login restored
+@app.route('/login', methods=['POST'])
+def login():
+    conn = None
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
+
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+        cursor.execute("SELECT password_hash, company_name FROM clients WHERE LOWER(email) = ?", email)
+        row = cursor.fetchone()
+
+        if not row:
+            return jsonify({"error": "Invalid email or password"}), 401
+
+        hashed_password, company_name = row
+        if not check_password_hash(hashed_password, password):
+            return jsonify({"error": "Invalid email or password"}), 401
+
+        session['email'] = email
+        session['company_name'] = company_name
+
+        return jsonify({"message": "Login successful", "company_name": company_name}), 200
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+# ✅ Save template
 @app.route('/save-template', methods=['POST'])
 def save_template():
     conn = None
@@ -31,45 +139,55 @@ def save_template():
         template_data = data.get('template')
         is_recommended_clicked = data.get('recommended', False)
 
-        user_email = session.get('email', 'test@example.com')  # fallback for testing
+        user_email = session.get('email')
         if not user_email:
             return jsonify({"error": "Not logged in"}), 401
 
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
 
+        # Get client info
         cursor.execute("SELECT client_id, company_name FROM clients WHERE LOWER(email) = ?", user_email.lower())
-        row = cursor.fetchone()
-        if not row:
+        client = cursor.fetchone()
+        if not client:
             return jsonify({"error": "Client not found"}), 404
 
-        client_id, company_name = row
-        recommended_name = f"{company_name}Recommended Template"
+        client_id, company_name = client
 
+        # Analyze submission
         selected_questions = 0
         has_custom = False
+
         for section, questions in template_data.items():
             for question in questions:
-                if "custom" in question.lower() or "?" in question:
+                q_lower = question.lower()
+                if 'custom' in q_lower or '?' in question:
                     has_custom = True
                 selected_questions += 1
 
-        RECOMMENDED_COUNT = 100
-        matches_recommended_structure = not has_custom and selected_questions == RECOMMENDED_COUNT
+        # Corrected recommended structure logic
+        EXACT_RECOMMENDED_COUNT = 100
+        is_exact_recommended_structure = not has_custom and selected_questions == EXACT_RECOMMENDED_COUNT
+        recommended_name = f"{company_name}Recommended Template"
 
-        cursor.execute("SELECT 1 FROM templates WHERE client_id = ? AND template_name = ?", client_id, recommended_name)
-        already_exists = cursor.fetchone()
+        # Check if Recommended Template already exists
+        cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ? AND template_name = ?", client_id, recommended_name)
+        has_recommended_template = cursor.fetchone()[0] > 0
 
-        if matches_recommended_structure and already_exists:
-            return jsonify({"error": "You already have a Recommended Template saved. You cannot save another using the same structure."}), 409
+        # ❌ Absolute block: user is submitting exact recommended structure and one already exists
+        if is_exact_recommended_structure and has_recommended_template:
+            return jsonify({"error": "You already have a Recommended Template saved. This exact structure cannot be saved again."}), 409
 
-        if matches_recommended_structure and not already_exists:
+        # ✅ First-time recommended template save
+        if is_recommended_clicked and is_exact_recommended_structure and not has_recommended_template:
             template_name = recommended_name
         else:
+            # ✅ Save as custom
             cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
-            count = cursor.fetchone()[0] + 1
-            template_name = f"{company_name}{count}"
+            template_count = cursor.fetchone()[0] + 1
+            template_name = f"{company_name}{template_count}"
 
+        # Save to DB
         template_json = json.dumps(template_data)
         cursor.execute("""
             INSERT INTO templates (client_id, template_name, template_data, created_at)
@@ -86,5 +204,6 @@ def save_template():
         if conn:
             conn.close()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
+
