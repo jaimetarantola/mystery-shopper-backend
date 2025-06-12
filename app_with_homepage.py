@@ -136,6 +136,9 @@ def save_template():
     conn = None
     try:
         data = request.get_json()
+        template_data = data.get('template')
+        is_recommended = data.get('recommended', False)
+
         user_email = session.get('email')
         if not user_email:
             return jsonify({"error": "Not logged in"}), 401
@@ -151,13 +154,16 @@ def save_template():
 
         client_id, company_name = client
 
-        # Generate template name
-        cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
-        template_count = cursor.fetchone()[0] + 1
-        template_name = f"{company_name}{template_count}"
+        # Template name logic
+        if is_recommended:
+            template_name = f"{company_name}Recommended Template"
+        else:
+            cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
+            template_count = cursor.fetchone()[0] + 1
+            template_name = f"{company_name}{template_count}"
 
-        # Save template
-        template_json = json.dumps(data)
+        # Save to database
+        template_json = json.dumps(template_data)
         cursor.execute("""
             INSERT INTO templates (client_id, template_name, template_data, created_at)
             VALUES (?, ?, ?, ?)
@@ -175,4 +181,6 @@ def save_template():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+
 
