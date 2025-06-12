@@ -165,20 +165,20 @@ def save_template():
                     has_custom = True
                 selected_questions += 1
 
-        # Reference config for recommended template match
+        # Corrected recommended structure logic
         EXACT_RECOMMENDED_COUNT = 100
         is_exact_recommended_structure = not has_custom and selected_questions == EXACT_RECOMMENDED_COUNT
         recommended_name = f"{company_name}Recommended Template"
 
-        # Check for existing recommended template
+        # Check if Recommended Template already exists
         cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ? AND template_name = ?", client_id, recommended_name)
         has_recommended_template = cursor.fetchone()[0] > 0
 
-        # ❌ ABSOLUTE BLOCK: if submitted structure matches recommended AND one already exists
+        # ❌ Absolute block: user is submitting exact recommended structure and one already exists
         if is_exact_recommended_structure and has_recommended_template:
             return jsonify({"error": "You already have a Recommended Template saved. This exact structure cannot be saved again."}), 409
 
-        # ✅ Save as recommended (first time only)
+        # ✅ First-time recommended template save
         if is_recommended_clicked and is_exact_recommended_structure and not has_recommended_template:
             template_name = recommended_name
         else:
@@ -187,13 +187,14 @@ def save_template():
             template_count = cursor.fetchone()[0] + 1
             template_name = f"{company_name}{template_count}"
 
-        # Save the template
+        # Save to DB
         template_json = json.dumps(template_data)
         cursor.execute("""
             INSERT INTO templates (client_id, template_name, template_data, created_at)
             VALUES (?, ?, ?, ?)
         """, (client_id, template_name, template_json, datetime.now()))
         conn.commit()
+
         return jsonify({"message": f"Template '{template_name}' saved!"}), 201
 
     except Exception as e:
