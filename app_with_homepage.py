@@ -26,15 +26,16 @@ def save_template():
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
 
-        # Get client info
+        # Get client_id and company_name
         cursor.execute("SELECT client_id, company_name FROM clients WHERE LOWER(email) = ?", user_email.lower())
-        client = cursor.fetchone()
-        if not client:
+        row = cursor.fetchone()
+        if not row:
             return jsonify({"error": "Client not found"}), 404
 
-        client_id, company_name = client
+        client_id, company_name = row
+        recommended_name = f"{company_name}Recommended Template"
 
-        # Analyze submitted content
+        # Count selected questions and check for custom
         selected_questions = 0
         has_custom = False
         for section, questions in template_data.items():
@@ -44,25 +45,23 @@ def save_template():
                 selected_questions += 1
 
         RECOMMENDED_COUNT = 100
-        is_recommended_structure = not has_custom and selected_questions == RECOMMENDED_COUNT
-        recommended_name = f"{company_name}Recommended Template"
+        matches_recommended_structure = not has_custom and selected_questions == RECOMMENDED_COUNT
 
-        # Check if recommended already exists
-        cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ? AND template_name = ?", client_id, recommended_name)
-        has_recommended_template = cursor.fetchone()[0] > 0
+        # Check SQL: is a recommended template already saved?
+        cursor.execute("SELECT 1 FROM templates WHERE client_id = ? AND template_name = ?", client_id, recommended_name)
+        already_exists = cursor.fetchone()
 
-        # 🔒 Block all saves that match recommended structure if one already exists
-        if is_recommended_structure and has_recommended_template:
-            return jsonify({"error": "You already have a Recommended Template saved. You cannot save the same structure again."}), 409
+        if matches_recommended_structure and already_exists:
+            return jsonify({"error": "You already have a Recommended Template saved. You cannot save another using the same structure."}), 409
 
-        # Save as Recommended only if it's the first time
-        if is_recommended_clicked and is_recommended_structure and not has_recommended_template:
+        # Save as Recommended if valid and first time
+        if matches_recommended_structure and not already_exists:
             template_name = recommended_name
         else:
-            # Otherwise save as custom
+            # Otherwise treat as custom
             cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
-            template_count = cursor.fetchone()[0] + 1
-            template_name = f"{company_name}{template_count}"
+            count = cursor.fetchone()[0] + 1
+            template_name = f"{company_name}{count}"
 
         template_json = json.dumps(template_data)
         cursor.execute("""
