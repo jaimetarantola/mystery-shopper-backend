@@ -2,114 +2,118 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Build Your Shop Template</title>
+  <title>Build Your Custom Shop Template</title>
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(to right, #f2f6fc, #dbe9ff);
+      font-family: Arial, sans-serif;
+      background-color: #eaf2fb;
       margin: 0;
-      padding: 40px 0;
+      padding: 0;
     }
-    .form-wrapper {
-      max-width: 900px;
-      margin: auto;
-      background-color: white;
-      padding: 30px 40px;
-      border-radius: 10px;
-      box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+    .container {
+      background: white;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
     h2 {
       color: #2c3e50;
-      text-align: center;
-    }
-    h3 {
-      margin-top: 30px;
-      color: #2c3e50;
-    }
-    label {
-      display: block;
-      margin: 8px 0;
-    }
-    .instructions {
-      font-size: 0.95em;
-      color: #555;
-      margin-bottom: 20px;
     }
     .section {
-      margin-bottom: 25px;
+      margin-bottom: 30px;
     }
-    .custom-question-inputs input {
-      display: block;
-      margin: 6px 0;
-      padding: 6px;
-      width: 100%;
+    .section h3 {
+      margin-top: 20px;
+      color: #2c3e50;
     }
-    .custom-question-inputs {
+    .question-group {
+      margin: 10px 0;
+    }
+    .custom-questions {
       margin-top: 10px;
     }
-    button, .add-btn {
-      display: inline-block;
+    button {
+      display: block;
+      width: 100%;
       background-color: #4a90e2;
       color: white;
-      padding: 10px 16px;
+      padding: 12px;
       border: none;
-      font-weight: bold;
-      border-radius: 6px;
+      font-size: 16px;
+      border-radius: 8px;
       cursor: pointer;
-      transition: background-color 0.3s ease;
+      margin-top: 30px;
     }
-    .add-btn {
+    button:hover {
+      background-color: #357ab8;
+    }
+    .recommended-btn {
+      background-color: #27ae60;
+      margin-bottom: 20px;
+    }
+    .add-custom-btn {
+      margin-top: 10px;
       background-color: #ecf0f1;
       color: #2c3e50;
-      margin-top: 10px;
-    }
-    button:hover, .add-btn:hover {
-      background-color: #3b7dc4;
-    }
-    .submit-btn {
-      margin-top: 30px;
-      width: 100%;
-      font-size: 16px;
+      font-weight: bold;
+      border: 1px solid #bdc3c7;
     }
   </style>
 </head>
 <body>
-  <div class="form-wrapper">
+  <div class="container">
     <h2>Build Your Custom Shop Template</h2>
-    <button type="button" onclick="loadRecommendedTemplate()">Load Recommended Template</button>
-    <p class="instructions">
-      Use this form to create a shop template. Required sections are preselected. You may also add your own custom questions in each section.<br>
-      The shopper will be required to describe and summarize their experience after each section.
-    </p>
 
-    <form id="templateForm">
-      <!-- REPLACE THIS COMMENT WITH THE FULL CONTENT FROM YOUR ORIGINAL FORM STRUCTURE -->
+    <button type="button" class="recommended-btn" onclick="loadRecommendedTemplate()">Load Recommended Template</button>
 
-      <!-- Example format for a section -->
-      <div class="section">
+    <p>Use this form to create a shop template. Required sections are preselected. You may also add your own custom questions in each section.</p>
+
+    <form id="shopForm">
+
+      <!-- EXAMPLE SECTION -->
+      <div class="section" data-section="Agent & Visit Information">
         <h3>Agent & Visit Information</h3>
-        <label><input type="checkbox" name="agent_phoned"> Agent Phoned</label>
-        <label><input type="checkbox" name="date_of_call"> Date of Call</label>
-        <!-- Add the rest of the section's fields here -->
-        <div class="custom-question-inputs" id="agent_visit_custom"></div>
-        <button type="button" class="add-btn" onclick="addCustomQuestion('agent_visit_custom')">+ Add Custom Question</button>
+        <div class="question-group">
+          <label><input type="checkbox" name="Agent Phoned"> Agent Phoned</label><br>
+          <label><input type="checkbox" name="Date of Call"> Date of Call</label><br>
+          <label><input type="checkbox" name="Time of Call"> Time of Call</label><br>
+          <!-- (You should copy all questions from original HTML here) -->
+        </div>
+        <div class="custom-questions"></div>
+        <button type="button" class="add-custom-btn" onclick="addCustomQuestion(this)">+ Add Custom Question</button>
       </div>
 
-      <!-- Repeat similar blocks for each section from your original form -->
+      <!-- Repeat the above block for each original section you had like:
+          - Shopper Information
+          - Telephone – First Impression
+          - Telephone – Connect With Customer
+          - Property Visit
+          - Positive First Impression
+          - Tour – Connect with Customers
+          - Tour – Present the Property
+          - Follow-Up
+          - Fair Housing & Safety
+      -->
 
-      <button type="submit" class="submit-btn">Save Template</button>
+      <button type="submit">Save Template</button>
     </form>
   </div>
 
   <script>
-    function addCustomQuestion(sectionId) {
-      const container = document.getElementById(sectionId);
-      const count = container.querySelectorAll('input[type="text"]').length;
-      if (count >= 5) return;
-      const input = document.createElement("input");
-      input.type = "text";
-      input.name = `${sectionId}_custom${count + 1}`;
-      input.placeholder = `Custom question ${count + 1}`;
+    function addCustomQuestion(button) {
+      const section = button.closest('.section');
+      const container = section.querySelector('.custom-questions');
+      const inputCount = container.querySelectorAll('input').length;
+      if (inputCount >= 5) return;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.name = 'custom';
+      input.placeholder = 'Enter custom question';
+      input.style.display = 'block';
+      input.style.marginTop = '5px';
       container.appendChild(input);
     }
 
@@ -117,32 +121,48 @@
       document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
     }
 
-    document.addEventListener("DOMContentLoaded", function () {
-      document.getElementById("templateForm").addEventListener("submit", function (e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        const entries = {};
-        for (let [key, value] of formData.entries()) {
-          if (!entries[key]) entries[key] = [];
-          entries[key].push(value);
-        }
-        fetch("/save-template", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(entries)
-        })
-        .then(res => res.json())
-        .then(data => {
-          alert(data.message || data.error);
-          if (data.message) window.location.href = "/dashboard";
-        })
-        .catch(err => {
-          alert("Error saving template.");
-          console.error(err);
+    document.getElementById('shopForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const sections = document.querySelectorAll('.section');
+      const template = {};
+
+      sections.forEach(section => {
+        const title = section.getAttribute('data-section');
+        const questions = [];
+
+        section.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+          questions.push(cb.name.trim());
         });
+
+        section.querySelectorAll('input[name="custom"]').forEach(input => {
+          if (input.value.trim()) {
+            questions.push(input.value.trim());
+          }
+        });
+
+        if (questions.length > 0) {
+          template[title] = questions;
+        }
       });
+
+      try {
+        const res = await fetch('/save-template', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ template })
+        });
+
+        if (res.ok) {
+          alert('Template saved successfully!');
+          window.location.href = "/dashboard";
+        } else {
+          alert('Failed to save template.');
+        }
+      } catch (err) {
+        console.error('Error:', err);
+        alert('Error saving template.');
+      }
     });
   </script>
 </body>
