@@ -1,349 +1,203 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Build Your Custom Shop Template</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #eaf2fb;
-      margin: 0;
-      padding: 0;
-    }
-    .container {
-      background: white;
-      max-width: 800px;
-      margin: 40px auto;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    h2 {
-      color: #2c3e50;
-    }
-    h3 {
-      color: #2c3e50;
-    }
-    .section {
-      margin-bottom: 30px;
-    }
-    .instructions {
-      margin: 10px 0;
-      font-weight: bold;
-    }
-    .question {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      margin-bottom: 8px;
-    }
-    .question input[type="checkbox"] {
-      margin-top: 4px;
-      flex-shrink: 0;
-    }
-    .question label {
-      display: inline-block;
-      max-width: 90%;
-      line-height: 1.4;
-    }
-    .custom-question-inputs {
-      margin-top: 10px;
-    }
-    button {
-      display: block;
-      width: 100%;
-      background-color: #4a90e2;
-      color: white;
-      padding: 12px;
-      border: none;
-      font-size: 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      margin-top: 30px;
-    }
-    button:hover {
-      background-color: #357ab8;
-    }
-    .recommended-btn {
-      background-color: #27ae60;
-      margin-bottom: 20px;
-    }
-    .add-btn {
-      background-color: #ecf0f1;
-      color: #2c3e50;
-      font-weight: bold;
-      border: 1px solid #bdc3c7;
-      width: auto;
-      margin-top: 10px;
-      padding: 6px 10px;
-      border-radius: 6px;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h2>Build Your Custom Shop Template</h2>
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session
+from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
+import pyodbc
+import traceback
+import json
+from datetime import datetime
 
-    <button type="button" class="recommended-btn" onclick="loadRecommendedTemplate()">Load Recommended Template</button>
+app = Flask(__name__)
+app.secret_key = 'supersecretkey123'
+CORS(app)
 
-    <p>Use this form to create a shop template. Required sections are preselected. You may also add your own custom questions in each section.<br>
-    The shopper will be required to describe and summarize their experience after each section.</p>
+# SQL Server config
+server = 'DESKTOP-GANGRVA'
+database = 'mystery_shopper'
+conn_str = (
+    'DRIVER={ODBC Driver 17 for SQL Server};'
+    f'SERVER={server};'
+    f'DATABASE={database};'
+    'Trusted_Connection=yes;'
+)
 
-    <form id="shopForm">
+# Home
+@app.route('/')
+def home():
+    return render_template('Client Homepage.html')
 
-      <div class="section">
-        <h3>Agent & Visit Information</h3>
-        <div class="instructions">Select which details you want to include:</div>
-        <div class="question"><input type="checkbox" checked disabled><label>Agent Phoned</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Date of Call</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Time of Call</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Length of Call</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Other Calls</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Agent Shopped</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Date of Visit</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Time of Visit</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Length of Visit</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Weather Conditions</label></div>
-        <button type="button" class="add-btn" onclick="addCustomQuestion('custom_agent')">+ Add Custom Question</button>
-        <div class="custom-question-inputs" id="custom_agent"></div>
-      </div>
+# Pages
+@app.route('/register-page')
+def register_page():
+    return render_template('Client_Account.html')
 
-      <div class="section">
-        <h3>Shopper Information</h3>
-        <div class="instructions">Select the fields to include:</div>
-        <div class="question"><input type="checkbox" checked disabled><label>Shopper Name</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Name Given (Telephone)</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Name Given (On-Site)</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Guest Accompanying Shopper</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Relationship to Shopper</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Address</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>City</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>State</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Zip</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Telephone</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Email Address</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Traffic Source</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Apartment Size</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Date Needed</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Pets</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Number of Occupants</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Reason for Moving</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Specific Apartment Needs</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Specific Property Preferences</label></div>
-        <div class="question"><input type="checkbox" checked disabled><label>Ideal Living Environment</label></div>
-        <button type="button" class="add-btn" onclick="addCustomQuestion('custom_shopper')">+ Add Custom Question</button>
-        <div class="custom-question-inputs" id="custom_shopper"></div>
-      </div>
+@app.route('/login-page')
+def login_page():
+    return render_template('Client Login.html')
 
-     <div class="section">
-          <h3>Executive Summary</h3>
-          <div class="question"><input type="checkbox"><label>Overall Attitude and Impression</label></div>
-          <div class="question"><input type="checkbox"><label>Strengths of the Associate's Presentation</label></div>
-          <div class="question"><input type="checkbox"><label>Opportunities to Improve</label></div>
-          <div class="question"><input type="checkbox"><label>Overall Summary of Experience</label></div>
-          <button type="button" class="add-btn" onclick="addCustomQuestion('custom_exec')">+ Add Custom Question</button>
-          <div class="custom-question-inputs" id="custom_exec"></div>
-        </div>
+@app.route('/dashboard')
+def dashboard():
+    if 'email' not in session:
+        return redirect(url_for('home'))
+    return render_template('client_dashboard_mockup.html', company_name=session.get('company_name'))
 
-      <div class="section">
-  <h3>Telephone – First Impression</h3>
-  <div class="question"><input type="checkbox"><label>Number of Calls Made Before Reaching a Live Person</label></div>
-  <div class="question"><input type="checkbox"><label>Did the Associate answer the phone with the name of the property and identify their self?</label></div>
-  <div class="question"><input type="checkbox"><label>Did the Associate obtain your name within the first 30 seconds of the telephone call and effectively use it during the conversation?</label></div>
-  <div class="question"><input type="checkbox"><label>Did the Associate convey a sincere and friendly attitude and appear genuinely interested in serving you?</label></div>
-  <button type="button" class="add-btn" onclick="addCustomQuestion('custom_phone1')">+ Add Custom Question</button>
-  <div class="custom-question-inputs" id="custom_phone1"></div>
-</div>
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('home'))
 
-      <div class="section">
-          <h3>Telephone – Connect With Customer</h3>
-          <div class="question"><input type="checkbox"><label>Asked open-ended questions?</label></div>
-          <div class="question"><input type="checkbox"><label>Asked at least 3 qualifying items?</label></div>
-          <div class="question"><input type="checkbox"><label>Used positive phrasing?</label></div>
-          <div class="question"><input type="checkbox"><label>Built rapport and conversation?</label></div>
+@app.route('/shop-templates')
+def shop_templates():
+    if 'email' not in session:
+        return redirect(url_for('login_page'))
+    return render_template('shop_templates_home.html')
 
-        <div class="question"><input type="checkbox"><label>Did the associate ask at least three of the items below, in a conversational manner? (i.e. did not just ask a list of questions or bullet point the questions.)</label></div>
-<div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Size apartment</label></div>
-<div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Move-in date</label></div>
-<div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Lease term</label></div>
-<div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Floor level preference</label></div>
-<div class="question" style="margin-left: 20px;"><input type="checkbox"><label>View preference</label></div>
-<div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Number of occupants</label></div>
-<div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Animals</label></div>
+@app.route('/shop-template-builder')
+def shop_template_builder():
+    if 'email' not in session:
+        return redirect(url_for('login_page'))
+    return render_template('Client Shop Template Builder.html')
 
-<div class="question"><input type="checkbox"><label>Used active listening to match apartment features with customer needs</label></div>
-<div class="question"><input type="checkbox"><label>Used property website or virtual materials as a selling tool</label></div>
-<div class="question"><input type="checkbox"><label>Asked for contact information</label></div>
-<div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Phone</label></div>
-<div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Email</label>
-</div>
-  <button type="button" class="add-btn" onclick="addCustomQuestion('custom_phone2')">+ Add Custom Question</button>
-  <div class="custom-question-inputs" id="custom_phone2"></div>
+# Register
+@app.route('/register', methods=['POST'])
+def register():
+    conn = None
+    try:
+        data = request.get_json()
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
 
+        email = data['email'].strip().lower()
+        cursor.execute("SELECT * FROM clients WHERE LOWER(email) = ?", email)
+        if cursor.fetchone():
+            return jsonify({"error": "Email already registered"}), 409
 
-<h3>Property Visit</h3>
-<div class="question"><input type="checkbox"><label>Property signage and directions visible?</label></div>
-<div class="question"><input type="checkbox"><label>Amenities and grounds clean?</label></div>
-<div class="question"><input type="checkbox"><label>Leasing office professional and clean?</label></div>
+        password = data.get('password')
+        if not password:
+            return jsonify({"error": "Password is required"}), 400
 
-<div class="question"><input type="checkbox"><label>Were the main property signs clear, visible and in good condition?</label></div>
-<div class="question"><input type="checkbox"><label>Did you easily locate the leasing office/information center?</label></div>
-<div class="question"><input type="checkbox"><label>Were the lawns and landscaping neat and trim, and free of all trash?</label></div>
-<div class="question"><input type="checkbox"><label>Was the general appearance of the parking area in good condition and free of trash?</label></div>
-<div class="question"><input type="checkbox"><label>Were the property amenities you saw (i.e. pool, tennis courts, etc.) clean, attractive, and well maintained?</label></div>
-<div class="question"><input type="checkbox"><label>Was the leasing office (including desks) clean, neat, and orderly?</label></div>
-<div class="question"><input type="checkbox"><label>Was your first impression of the property and curb appeal a positive one?</label></div>
-<button type="button" class="add-btn" onclick="addCustomQuestion(\'custom_visit\')">+ Add Custom Question</button>
-          <div class="custom-question-inputs" id="custom_visit"></div>
-        </div>
-<div class="section">
+        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
 
-  
-  <h3>Positive First Impression</h3>
-  <div class="question"><input type="checkbox"><label>Did the Associate make a positive first impression and appear genuinely interested in serving you?</label></div><div class="section">
-    <div class="question"><input type="checkbox"><label>Did the Associate deliver a professional greeting by doing any of the following:</label></div>
-  <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Stand</label></div>
-  <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Smile</label></div>
-  <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Introduce Themselves</label></div>
-  <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Offer Welcome handshake/high five</label></div>
-  <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Offer refreshment before the tour</label></div>
+        cursor.execute("""
+            INSERT INTO clients (
+                company_name, company_address, company_city, company_state, company_zip,
+                client_first_name, client_last_name, email, client_phone, password_hash
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data['company_name'], data['company_address'], data['company_city'], data['company_state'], data['company_zip'],
+            data['client_first_name'], data['client_last_name'], email, data['client_phone'], hashed_password
+        ))
 
-<div class="question"><input type="checkbox"><label>Was the Associate prepared for your visit (if you called first) to make you feel welcomed by doing the following:</label></div>
-<div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Knew you were showing up</label></div>
-<div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Had relevant information available (e.g. price sheet, layouts, map, etc.)</label></div>
-<div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Greet you by name</label></div>
+        conn.commit()
+        return jsonify({"message": "Client registered successfully"}), 201
 
-<button type="button" class="add-btn" onclick="addCustomQuestion('tour_first_impression')">+ Add Custom Question</button>
-<div class="custom-question-inputs" id="tour_first_impression"></div>
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
 
-  <h3>Tour – Connect with Customers</h3>
-  <div class="question"><input type="checkbox"><label>Asked or recapped preferences to match needs (e.g. "I remember you mentioned...")</label></div>
-  <div class="question"><input type="checkbox"><label>Use active listening techniques?</label></div>
-  <div class="question"><input type="checkbox"><label>Did the Associate use positive phrasing throughout the conversation?</label></div>
-  <div class="question"><input type="checkbox"><label>Did the Associate ask questions to generate conversation and connection? </label></div>
-<button type="button" class="add-btn" onclick="addCustomQuestion('tour_connect_with_customers')">+ Add Custom Question</button>
-<div class="custom-question-inputs" id="tour_connect_with_customers"></div>
-</div>
+# ✅ Login restored
+@app.route('/login', methods=['POST'])
+def login():
+    conn = None
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
 
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+        cursor.execute("SELECT password_hash, company_name FROM clients WHERE LOWER(email) = ?", email)
+        row = cursor.fetchone()
 
-<h3>Tour – Present the Property</h3>
-  <div class="question"><input type="checkbox"><label>Did the Associate lead the tour/presentation with confidence and excitement, while inviting you to ask questions along the way?</label></div>
-  <div class="question"><input type="checkbox"><label>Did the associate take a set tour path and highlight property amenities including customer service areas (e.g., maintenance services, resident events, awards property/associate has received etc.)?</label></div>
-  <div class="question"><input type="checkbox"><label>Did the Associate show an apartment that was tour ready (i.e. clean, made-ready, lights on)? </label></div>
-  <div class="question"><input type="checkbox"><label>Did the Associate mention benefits for the apartment features demonstrated (e.g. sell the features of the home and property that the customer said was important to them)?</label></div>
-    <div class="question"><input type="checkbox"><label>Did the Associate discuss any of the following neighboring conveniences?</label></div>
-  <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Shopping</label></div>
-  <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Recreational Facilities (e.g. park, tennis court, basketball, etc)</label></div>
-  <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Dining</label></div>
-  <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Transportation</label></div>
-  <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Entertainment</label></div>
-  <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Nearby hospitals/Doctors offices</label></div>
-  <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Animal facilities (e.g. vet, dog park, etc.)</label></div>
-  <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Grocery Stores</label></div>
-  <button type="button" class="add-btn" onclick="addCustomQuestion('tour_present_the_property')">+ Add Custom Question</button>
-  <div class="custom-question-inputs" id="tour_present_the_property"></div>
-  </div>
-        
+        if not row:
+            return jsonify({"error": "Invalid email or password"}), 401
 
+        hashed_password, company_name = row
+        if not check_password_hash(hashed_password, password):
+            return jsonify({"error": "Invalid email or password"}), 401
 
-  
-<div class="section">
-          <h3>Follow-Up</h3>
-          <div class="question"><input type="checkbox"><label>Follow up within 48 hours?</label></div>
-          <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Phone Call</label></div>
-          <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Email</label></div>
-          <div class="question" style="margin-left: 20px;"><input type="checkbox"><label>Text</label></div>
+        session['email'] = email
+        session['company_name'] = company_name
 
-          <div class="question"><input type="checkbox"><label>Asked to apply/reserve a unit?</label></div>
-          <button type="button" class="add-btn" onclick="addCustomQuestion('custom_follow')">+ Add Custom Question</button>
-          <div class="custom-question-inputs" id="custom_follow"></div>
-        </div>
+        return jsonify({"message": "Login successful", "company_name": company_name}), 200
 
-        <div class="section">
-          <h3>Fair Housing & Safety</h3>
-          <div class="question"><input type="checkbox"><label>Avoided discriminatory comments?</label></div>
-          <div class="question"><input type="checkbox"><label>Avoided security/safety language?</label></div>
-          <button type="button" class="add-btn" onclick="addCustomQuestion('custom_fair')">+ Add Custom Question</button>
-          <div class="custom-question-inputs" id="custom_fair"></div>
-        </div>
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
 
+# ✅ Save template
+@app.route('/save-template', methods=['POST'])
+def save_template():
+    conn = None
+    try:
+        data = request.get_json()
+        template_data = data.get('template')
+        is_recommended_clicked = data.get('recommended', False)
 
-      <button type="submit">Save Template</button>
-    </form>
-  </div>
+        user_email = session.get('email')
+        if not user_email:
+            return jsonify({"error": "Not logged in"}), 401
 
-  
-<script>
-  let isRecommendedTemplate = false;
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
 
-  function addCustomQuestion(id) {
-    const container = document.getElementById(id);
-    const inputCount = container.querySelectorAll('input').length;
-    if (inputCount >= 5) return;
+        # Get client info
+        cursor.execute("SELECT client_id, company_name FROM clients WHERE LOWER(email) = ?", user_email.lower())
+        client = cursor.fetchone()
+        if not client:
+            return jsonify({"error": "Client not found"}), 404
 
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.name = 'custom';
-    input.placeholder = 'Enter custom question';
-    input.style.display = 'block';
-    input.style.marginTop = '5px';
-    container.appendChild(input);
-  }
+        client_id, company_name = client
 
-  function loadRecommendedTemplate() {
-    document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
-    isRecommendedTemplate = true;
-  }
+        # Determine if submission qualifies as recommended template
+        total_checkbox_questions = 0
+        selected_questions = 0
+        has_custom = False
 
-  document.getElementById('shopForm').addEventListener('submit', async function (e) {
-    e.preventDefault();
+        for section, questions in template_data.items():
+            for question in questions:
+                if '?' in question or "custom" in question.lower():
+                    has_custom = True
+                selected_questions += 1
+            total_checkbox_questions += selected_questions  # assuming all selected are checkbox if no custom
 
-    const sections = document.querySelectorAll('.section');
-    const template = {};
+        qualifies_as_recommended = is_recommended_clicked and not has_custom and selected_questions >= 90
 
-    sections.forEach(section => {
-      const title = section.querySelector('h3')?.textContent || '';
-      const questions = [];
+        if qualifies_as_recommended:
+            template_name = f"{company_name}Recommended Template"
 
-      section.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
-        if (cb.nextElementSibling) {
-          questions.push(cb.nextElementSibling.textContent.trim());
-        }
-      });
+            # Check for existing recommended template
+            cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ? AND template_name = ?", client_id, template_name)
+            if cursor.fetchone()[0] > 0:
+                return jsonify({"error": "You already have a Recommended Template saved. Please create a new custom template."}), 409
+        else:
+            # fallback to regular naming
+            cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
+            template_count = cursor.fetchone()[0] + 1
+            template_name = f"{company_name}{template_count}"
 
-      section.querySelectorAll('input[name="custom"]').forEach(input => {
-        if (input.value.trim()) {
-          questions.push(input.value.trim());
-        }
-      });
+        # Save to database
+        template_json = json.dumps(template_data)
+        cursor.execute(""" 
+            INSERT INTO templates (client_id, template_name, template_data, created_at)
+            VALUES (?, ?, ?, ?)
+        """, (client_id, template_name, template_json, datetime.now()))
 
-      if (questions.length > 0) {
-        template[title] = questions;
-      }
-    });
+        conn.commit()
+        return jsonify({"message": f"Template '{template_name}' saved!"}), 201
 
-    try {
-      const res = await fetch('/save-template', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ template, recommended: isRecommendedTemplate })
-      });
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
 
-      if (res.status === 201) {
-        alert('Template saved successfully!');
-        window.location.href = "/dashboard";
-      } else if (res.status === 409) {
-        const data = await res.json();
-        alert(data.error || 'You already have a Recommended Template saved.');
-      } else {
-        alert('Failed to save template.');
-      }
-    } catch (err) {
-      console.error('Error:', err);
-      alert('Error saving template.');
-    }
-  });
-</script>
+if __name__ == '__main__':
+    app.run(debug=True)
 
-</body>
-</html>
