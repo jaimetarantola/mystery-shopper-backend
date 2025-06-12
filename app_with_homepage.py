@@ -154,9 +154,26 @@ def save_template():
 
         client_id, company_name = client
 
-        # Template name logic
-        if is_recommended:
+        # Determine if this submission qualifies as a recommended template
+        all_checked = True
+        has_custom = False
+        for section, questions in template_data.items():
+            for question in questions:
+                if question.lower().startswith("enter custom question") or "?" in question:
+                    has_custom = True
+            if not questions:
+                all_checked = False
+
+        qualifies_as_recommended = is_recommended and all_checked and not has_custom
+
+        if qualifies_as_recommended:
             template_name = f"{company_name}Recommended Template"
+
+            # Check for existing recommended template
+            cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ? AND template_name = ?", client_id, template_name)
+            existing_count = cursor.fetchone()[0]
+            if existing_count > 0:
+                return jsonify({"error": "You already have a Recommended Template saved. Please create a new custom template."}), 409
         else:
             cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
             template_count = cursor.fetchone()[0] + 1
@@ -164,7 +181,7 @@ def save_template():
 
         # Save to database
         template_json = json.dumps(template_data)
-        cursor.execute("""
+        cursor.execute(""" 
             INSERT INTO templates (client_id, template_name, template_data, created_at)
             VALUES (?, ?, ?, ?)
         """, (client_id, template_name, template_json, datetime.now()))
@@ -181,6 +198,4 @@ def save_template():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
 
