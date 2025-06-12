@@ -8,8 +8,8 @@ import traceback
 app = Flask(__name__)
 app.secret_key = 'your-secret-key'
 
+# Adjust your connection string as needed
 conn_str = 'Driver={ODBC Driver 17 for SQL Server};Server=your_server;Database=your_db;UID=your_user;PWD=your_password'
-
 
 @app.route('/save-template', methods=['POST'])
 def save_template():
@@ -79,3 +79,5 @@ def save_template():
         if conn:
             conn.close()
 
+if __name__ == "__main__":
+    app.run(debug=True)
