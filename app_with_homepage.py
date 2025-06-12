@@ -154,7 +154,7 @@ def save_template():
 
         client_id, company_name = client
 
-        # Analyze submission
+        # Count selected questions and detect custom
         selected_questions = 0
         has_custom = False
         for section, questions in template_data.items():
@@ -163,18 +163,24 @@ def save_template():
                     has_custom = True
                 selected_questions += 1
 
-        qualifies_as_recommended = is_recommended_clicked and not has_custom and selected_questions >= 90
         recommended_name = f"{company_name}Recommended Template"
 
-        # Check if recommended template already exists
+        # Check if client already has a recommended template
         cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ? AND template_name = ?", client_id, recommended_name)
         has_recommended_already = cursor.fetchone()[0] > 0
 
-        # Block only if submission qualifies as recommended and one already exists
-        if qualifies_as_recommended and has_recommended_already:
-            return jsonify({"error": "You already have a Recommended Template saved. Please create a new custom template."}), 409
+        # Determine if this submission qualifies as recommended
+        qualifies_as_recommended = is_recommended_clicked and not has_custom and selected_questions >= 90
 
-        # Assign name
+        # 🔒 Enforce restriction: Do NOT allow saving any recommended template again
+        if qualifies_as_recommended and has_recommended_already:
+            return jsonify({"error": "You already have a Recommended Template saved. You cannot save another."}), 409
+
+        # If user clicked recommended, but it does NOT qualify — reject saving altogether
+        if is_recommended_clicked and not qualifies_as_recommended:
+            return jsonify({"error": "You modified the Recommended Template. Please deselect the Recommended button and save as a custom template."}), 409
+
+        # If all good, proceed with saving
         if qualifies_as_recommended:
             template_name = recommended_name
         else:
@@ -182,7 +188,7 @@ def save_template():
             template_count = cursor.fetchone()[0] + 1
             template_name = f"{company_name}{template_count}"
 
-        # Save to database
+        # Save template
         template_json = json.dumps(template_data)
         cursor.execute(""" 
             INSERT INTO templates (client_id, template_name, template_data, created_at)
@@ -201,6 +207,4 @@ def save_template():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
 
