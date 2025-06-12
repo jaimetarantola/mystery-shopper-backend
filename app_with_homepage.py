@@ -176,7 +176,7 @@ def save_template():
 
         # BLOCK: if user clicked recommended but altered the default (not qualified)
         if is_recommended_clicked and not qualifies_as_recommended:
-            return jsonify({"error": "You modified the Recommended Template. Please deselect the Recommended button and save as a custom template."}), 409
+            return jsonify({"error": "You already have a Recommended Template saved to your account. Please deselect checkboxes to save a custom template."}), 409
 
         # CASE: save as Recommended Template
         if qualifies_as_recommended:
