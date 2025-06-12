@@ -90,8 +90,64 @@
     The shopper will be required to describe and summarize their experience after each section.</p>
 
     <form id="shopForm">
-      <!-- All your form content (sections/questions/buttons) goes here -->
-      <!-- We've already placed this in the canvas for editing. Use that content here -->
+
+      <div class="section">
+        <h3>Agent & Visit Information</h3>
+        <div class="instructions">Select which details you want to include:</div>
+        <div class="question"><input type="checkbox" checked disabled><label>Agent Phoned</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Date of Call</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Time of Call</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Length of Call</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Other Calls</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Agent Shopped</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Date of Visit</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Time of Visit</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Length of Visit</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Weather Conditions</label></div>
+        <button type="button" class="add-btn" onclick="addCustomQuestion('custom_agent')">+ Add Custom Question</button>
+        <div class="custom-question-inputs" id="custom_agent"></div>
+      </div>
+
+      <div class="section">
+        <h3>Shopper Information</h3>
+        <div class="instructions">Select the fields to include:</div>
+        <div class="question"><input type="checkbox" checked disabled><label>Shopper Name</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Name Given (Telephone)</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Name Given (On-Site)</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Guest Accompanying Shopper</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Relationship to Shopper</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Address</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>City</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>State</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Zip</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Telephone</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Email Address</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Traffic Source</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Apartment Size</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Date Needed</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Pets</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Number of Occupants</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Reason for Moving</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Specific Apartment Needs</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Specific Property Preferences</label></div>
+        <div class="question"><input type="checkbox" checked disabled><label>Ideal Living Environment</label></div>
+        <button type="button" class="add-btn" onclick="addCustomQuestion('custom_shopper')">+ Add Custom Question</button>
+        <div class="custom-question-inputs" id="custom_shopper"></div>
+      </div>
+
+      <div class="section">
+        <h3>Telephone – First Impression</h3>
+        <div class="question"><input type="checkbox"><label>Number of Calls Made Before Reaching a Live Person</label></div>
+        <div class="question"><input type="checkbox"><label>Did the Associate answer the phone with the name of the property and identify their self?</label></div>
+        <div class="question"><input type="checkbox"><label>Did the Associate obtain your name within the first 30 seconds of the telephone call and effectively use it during the conversation?</label></div>
+        <div class="question"><input type="checkbox"><label>Did the Associate convey a sincere and friendly attitude and appear genuinely interested in serving you?</label></div>
+        <button type="button" class="add-btn" onclick="addCustomQuestion('custom_phone1')">+ Add Custom Question</button>
+        <div class="custom-question-inputs" id="custom_phone1"></div>
+      </div>
+
+      <!-- You can continue with more sections here as needed -->
+
+      <button type="submit">Save Template</button>
     </form>
   </div>
 
