@@ -157,24 +157,32 @@ def save_template():
         # Analyze submission
         selected_questions = 0
         has_custom = False
+
         for section, questions in template_data.items():
             for question in questions:
-                if '?' in question or "custom" in question.lower():
+                q_lower = question.lower()
+                if 'custom' in q_lower or '?' in question:
                     has_custom = True
                 selected_questions += 1
 
-        qualifies_as_recommended = is_recommended_clicked and not has_custom and selected_questions >= 90
+        # Use exact match for full recommended form
+        EXACT_RECOMMENDED_COUNT = 90
         recommended_name = f"{company_name}Recommended Template"
 
-        # Check if client already has a recommended template
+        # Check if this matches pure recommended template
+        qualifies_as_recommended = (
+            is_recommended_clicked and not has_custom and selected_questions == EXACT_RECOMMENDED_COUNT
+        )
+
+        # Check if a recommended template already exists
         cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ? AND template_name = ?", client_id, recommended_name)
         has_recommended = cursor.fetchone()[0] > 0
 
-        # BLOCK only if this is truly a recommended template AND already exists
+        # Block if this is a pure recommended template but one already exists
         if qualifies_as_recommended and has_recommended:
             return jsonify({"error": "You already have a Recommended Template saved."}), 409
 
-        # If it doesn't qualify, treat it like a custom template regardless of whether they clicked the button
+        # Save with correct name
         if qualifies_as_recommended:
             template_name = recommended_name
         else:
