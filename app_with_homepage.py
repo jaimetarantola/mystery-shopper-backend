@@ -10,6 +10,7 @@ app = Flask(__name__)
 app.secret_key = 'supersecretkey123'
 CORS(app)
 
+# SQL Server config
 server = 'DESKTOP-GANGRVA'
 database = 'mystery_shopper'
 conn_str = (
@@ -19,10 +20,12 @@ conn_str = (
     'Trusted_Connection=yes;'
 )
 
+# Home
 @app.route('/')
 def home():
     return render_template('Client Homepage.html')
 
+# Pages
 @app.route('/register-page')
 def register_page():
     return render_template('Client_Account.html')
@@ -54,6 +57,80 @@ def shop_template_builder():
         return redirect(url_for('login_page'))
     return render_template('Client Shop Template Builder.html')
 
+# Register
+@app.route('/register', methods=['POST'])
+def register():
+    conn = None
+    try:
+        data = request.get_json()
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+
+        email = data['email'].strip().lower()
+        cursor.execute("SELECT * FROM clients WHERE LOWER(email) = ?", email)
+        if cursor.fetchone():
+            return jsonify({"error": "Email already registered"}), 409
+
+        password = data.get('password')
+        if not password:
+            return jsonify({"error": "Password is required"}), 400
+
+        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+
+        cursor.execute("""
+            INSERT INTO clients (
+                company_name, company_address, company_city, company_state, company_zip,
+                client_first_name, client_last_name, email, client_phone, password_hash
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data['company_name'], data['company_address'], data['company_city'], data['company_state'], data['company_zip'],
+            data['client_first_name'], data['client_last_name'], email, data['client_phone'], hashed_password
+        ))
+
+        conn.commit()
+        return jsonify({"message": "Client registered successfully"}), 201
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+# ✅ Login restored
+@app.route('/login', methods=['POST'])
+def login():
+    conn = None
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
+
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+        cursor.execute("SELECT password_hash, company_name FROM clients WHERE LOWER(email) = ?", email)
+        row = cursor.fetchone()
+
+        if not row:
+            return jsonify({"error": "Invalid email or password"}), 401
+
+        hashed_password, company_name = row
+        if not check_password_hash(hashed_password, password):
+            return jsonify({"error": "Invalid email or password"}), 401
+
+        session['email'] = email
+        session['company_name'] = company_name
+
+        return jsonify({"message": "Login successful", "company_name": company_name}), 200
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+# ✅ Save template
 @app.route('/save-template', methods=['POST'])
 def save_template():
     conn = None
@@ -66,7 +143,7 @@ def save_template():
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
 
-        # Get client_id and company_name
+        # Get client info
         cursor.execute("SELECT client_id, company_name FROM clients WHERE LOWER(email) = ?", user_email.lower())
         client = cursor.fetchone()
         if not client:
@@ -74,32 +151,12 @@ def save_template():
 
         client_id, company_name = client
 
-        # Count existing templates for naming
+        # Generate template name
         cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
         template_count = cursor.fetchone()[0] + 1
         template_name = f"{company_name}{template_count}"
 
-        # Save JSON string of the template data
+        # Save template
         template_json = json.dumps(data)
-
         cursor.execute("""
-            INSERT INTO templates (client_id, template_name, template_data, created_at)
-            VALUES (?, ?, ?, ?)
-        """, (client_id, template_name, template_json, datetime.now()))
-
-        conn.commit()
-        return jsonify({"message": f"Template '{template_name}' saved!"}), 201
-
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if conn:
-            conn.close()
-
-if __name__ == '__main__':
-    app.run(debug=True)
-
-
-
-
+            INSERT INTO temp
