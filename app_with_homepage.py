@@ -165,26 +165,24 @@ def save_template():
                     has_custom = True
                 selected_questions += 1
 
-        # Define recommended structure parameters
+        # Reference config for recommended template match
         EXACT_RECOMMENDED_COUNT = 90
+        is_exact_recommended_structure = not has_custom and selected_questions == EXACT_RECOMMENDED_COUNT
         recommended_name = f"{company_name}Recommended Template"
 
-        # Detect exact match regardless of 'recommended' flag
-        is_exact_recommended_submission = not has_custom and selected_questions == EXACT_RECOMMENDED_COUNT
-
-        # Check if Recommended Template already exists
+        # Check for existing recommended template
         cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ? AND template_name = ?", client_id, recommended_name)
         has_recommended_template = cursor.fetchone()[0] > 0
 
-        # BLOCK if user is attempting to resubmit the Recommended Template (even under custom name)
-        if is_exact_recommended_submission and has_recommended_template:
-            return jsonify({"error": "You already have a Recommended Template saved. This exact template cannot be saved again."}), 409
+        # ❌ ABSOLUTE BLOCK: if submitted structure matches recommended AND one already exists
+        if is_exact_recommended_structure and has_recommended_template:
+            return jsonify({"error": "You already have a Recommended Template saved. This exact structure cannot be saved again."}), 409
 
-        # If qualifies and no duplicate, save as Recommended
-        if is_recommended_clicked and is_exact_recommended_submission and not has_recommended_template:
+        # ✅ Save as recommended (first time only)
+        if is_recommended_clicked and is_exact_recommended_structure and not has_recommended_template:
             template_name = recommended_name
         else:
-            # Save as custom
+            # ✅ Save as custom
             cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
             template_count = cursor.fetchone()[0] + 1
             template_name = f"{company_name}{template_count}"
@@ -196,7 +194,6 @@ def save_template():
             VALUES (?, ?, ?, ?)
         """, (client_id, template_name, template_json, datetime.now()))
         conn.commit()
-
         return jsonify({"message": f"Template '{template_name}' saved!"}), 201
 
     except Exception as e:
