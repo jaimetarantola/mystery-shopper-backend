@@ -272,70 +272,75 @@
     </form>
   </div>
 
-  <script>
-    function addCustomQuestion(id) {
-      const container = document.getElementById(id);
-      const inputCount = container.querySelectorAll('input').length;
-      if (inputCount >= 5) return;
+  
+<script>
+  let isRecommendedTemplate = false;
 
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.name = 'custom';
-      input.placeholder = 'Enter custom question';
-      input.style.display = 'block';
-      input.style.marginTop = '5px';
-      container.appendChild(input);
-    }
+  function addCustomQuestion(id) {
+    const container = document.getElementById(id);
+    const inputCount = container.querySelectorAll('input').length;
+    if (inputCount >= 5) return;
 
-    function loadRecommendedTemplate() {
-      document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
-    }
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.name = 'custom';
+    input.placeholder = 'Enter custom question';
+    input.style.display = 'block';
+    input.style.marginTop = '5px';
+    container.appendChild(input);
+  }
 
-    document.getElementById('shopForm').addEventListener('submit', async function (e) {
-      e.preventDefault();
+  function loadRecommendedTemplate() {
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+    isRecommendedTemplate = true;
+  }
 
-      const sections = document.querySelectorAll('.section');
-      const template = {};
+  document.getElementById('shopForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
 
-      sections.forEach(section => {
-        const title = section.querySelector('h3')?.textContent || '';
-        const questions = [];
+    const sections = document.querySelectorAll('.section');
+    const template = {};
 
-        section.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
-          if (cb.nextElementSibling) {
-            questions.push(cb.nextElementSibling.textContent.trim());
-          }
-        });
+    sections.forEach(section => {
+      const title = section.querySelector('h3')?.textContent || '';
+      const questions = [];
 
-        section.querySelectorAll('input[name="custom"]').forEach(input => {
-          if (input.value.trim()) {
-            questions.push(input.value.trim());
-          }
-        });
-
-        if (questions.length > 0) {
-          template[title] = questions;
+      section.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+        if (cb.nextElementSibling) {
+          questions.push(cb.nextElementSibling.textContent.trim());
         }
       });
 
-      try {
-        const res = await fetch('/save-template', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ template })
-        });
-
-        if (res.ok) {
-          alert('Template saved successfully!');
-          window.location.href = "/dashboard";
-        } else {
-          alert('Failed to save template.');
+      section.querySelectorAll('input[name="custom"]').forEach(input => {
+        if (input.value.trim()) {
+          questions.push(input.value.trim());
         }
-      } catch (err) {
-        console.error('Error:', err);
-        alert('Error saving template.');
+      });
+
+      if (questions.length > 0) {
+        template[title] = questions;
       }
     });
-  </script>
+
+    try {
+      const res = await fetch('/save-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template, recommended: isRecommendedTemplate })
+      });
+
+      if (res.ok) {
+        alert('Template saved successfully!');
+        window.location.href = "/dashboard";
+      } else {
+        alert('Failed to save template.');
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      alert('Error saving template.');
+    }
+  });
+</script>
+
 </body>
 </html>
