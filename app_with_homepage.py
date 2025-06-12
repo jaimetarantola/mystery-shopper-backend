@@ -166,23 +166,17 @@ def save_template():
         qualifies_as_recommended = is_recommended_clicked and not has_custom and selected_questions >= 90
         recommended_name = f"{company_name}Recommended Template"
 
-        # Check for existing recommended
+        # Check if client already has a recommended template
         cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ? AND template_name = ?", client_id, recommended_name)
         has_recommended = cursor.fetchone()[0] > 0
 
-        # BLOCK: if this qualifies as recommended and already exists
+        # BLOCK only if this is truly a recommended template AND already exists
         if qualifies_as_recommended and has_recommended:
             return jsonify({"error": "You already have a Recommended Template saved."}), 409
 
-        # BLOCK: if user clicked recommended but altered the default (not qualified)
-        if is_recommended_clicked and not qualifies_as_recommended:
-            return jsonify({"error": "You already have a Recommended Template saved to your account. Please deselect checkboxes to save a custom template."}), 409
-
-        # CASE: save as Recommended Template
+        # If it doesn't qualify, treat it like a custom template regardless of whether they clicked the button
         if qualifies_as_recommended:
             template_name = recommended_name
-
-        # CASE: all others = custom template
         else:
             cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
             template_count = cursor.fetchone()[0] + 1
