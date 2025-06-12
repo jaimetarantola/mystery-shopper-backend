@@ -154,29 +154,36 @@ def save_template():
 
         client_id, company_name = client
 
-        # Determine if submission qualifies as recommended template
-        total_checkbox_questions = 0
+        # Check if this template qualifies as "recommended"
         selected_questions = 0
         has_custom = False
-
         for section, questions in template_data.items():
             for question in questions:
                 if '?' in question or "custom" in question.lower():
                     has_custom = True
                 selected_questions += 1
-            total_checkbox_questions += selected_questions  # assuming all selected are checkbox if no custom
 
         qualifies_as_recommended = is_recommended_clicked and not has_custom and selected_questions >= 90
+        recommended_name = f"{company_name}Recommended Template"
 
-        if qualifies_as_recommended:
-            template_name = f"{company_name}Recommended Template"
+        # Check if recommended template already exists
+        cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ? AND template_name = ?", client_id, recommended_name)
+        existing_recommended = cursor.fetchone()[0] > 0
 
-            # Check for existing recommended template
-            cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ? AND template_name = ?", client_id, template_name)
-            if cursor.fetchone()[0] > 0:
-                return jsonify({"error": "You already have a Recommended Template saved. Please create a new custom template."}), 409
+        # Case 1: Qualifies and doesn't exist — allow
+        if qualifies_as_recommended and not existing_recommended:
+            template_name = recommended_name
+
+        # Case 2: Qualifies but already exists — block
+        elif qualifies_as_recommended and existing_recommended:
+            return jsonify({"error": "You already have a Recommended Template saved. Please create a new custom template."}), 409
+
+        # Case 3: Doesn't qualify but they tried to click recommended — block if recommended already exists
+        elif is_recommended_clicked and existing_recommended:
+            return jsonify({"error": "You already have a Recommended Template saved. You cannot save another using the Recommended button."}), 409
+
+        # Case 4: Custom template, allow
         else:
-            # fallback to regular naming
             cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
             template_count = cursor.fetchone()[0] + 1
             template_name = f"{company_name}{template_count}"
