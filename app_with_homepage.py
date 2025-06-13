@@ -97,7 +97,6 @@ def register():
         if conn:
             conn.close()
 
-# ✅ Login restored
 @app.route('/login', methods=['POST'])
 def login():
     conn = None
@@ -130,7 +129,6 @@ def login():
         if conn:
             conn.close()
 
-# ✅ Save template
 @app.route('/save-template', methods=['POST'])
 def save_template():
     conn = None
@@ -249,7 +247,13 @@ def delete_template(template_id):
     try:
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
+
+        # ✅ First delete dependent rows in template_questions
+        cursor.execute("DELETE FROM template_questions WHERE template_id = ?", template_id)
+
+        # ✅ Then delete the template itself
         cursor.execute("DELETE FROM templates WHERE template_id = ?", template_id)
+
         conn.commit()
         return '', 204
     except Exception as e:
@@ -259,11 +263,51 @@ def delete_template(template_id):
         if conn:
             conn.close()
 
+@app.route('/rename-template/<int:template_id>', methods=['POST'])
+def rename_template(template_id):
+    conn = None
+    try:
+        data = request.get_json()
+        new_name = data.get('new_name', '').strip()
 
+        if not new_name:
+            return jsonify({"error": "New name is required"}), 400
+
+        user_email = session.get('email')
+        if not user_email:
+            return jsonify({"error": "Not logged in"}), 401
+
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT client_id FROM clients WHERE LOWER(email) = ?
+        """, user_email.lower())
+        row = cursor.fetchone()
+
+        if not row:
+            return jsonify({"error": "Client not found"}), 404
+
+        client_id = row[0]
+        cursor.execute("""
+            SELECT 1 FROM templates WHERE client_id = ? AND template_name = ? AND template_id != ?
+        """, (client_id, new_name, template_id))
+
+        if cursor.fetchone():
+            return jsonify({"error": "Template name already in use"}), 409
+
+        cursor.execute("""
+            UPDATE templates SET template_name = ? WHERE template_id = ?
+        """, (new_name, template_id))
+        conn.commit()
+        return '', 204
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
-
-
