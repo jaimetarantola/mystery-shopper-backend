@@ -243,6 +243,23 @@ def view_template(template_id):
         if conn:
             conn.close()
 
+@app.route('/delete-template/<int:template_id>', methods=['POST'])
+def delete_template(template_id):
+    conn = None
+    try:
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM templates WHERE template_id = ?", template_id)
+        conn.commit()
+        return '', 204
+    except Exception as e:
+        traceback.print_exc()
+        return 'Error deleting template', 500
+    finally:
+        if conn:
+            conn.close()
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
