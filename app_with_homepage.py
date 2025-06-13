@@ -20,12 +20,10 @@ conn_str = (
     'Trusted_Connection=yes;'
 )
 
-# Home
 @app.route('/')
 def home():
     return render_template('Client Homepage.html')
 
-# Pages
 @app.route('/register-page')
 def register_page():
     return render_template('Client_Account.html')
@@ -57,7 +55,6 @@ def shop_template_builder():
         return redirect(url_for('login_page'))
     return render_template('Client Shop Template Builder.html')
 
-# Register
 @app.route('/register', methods=['POST'])
 def register():
     conn = None
@@ -97,7 +94,6 @@ def register():
         if conn:
             conn.close()
 
-# ✅ Login restored
 @app.route('/login', methods=['POST'])
 def login():
     conn = None
@@ -130,7 +126,6 @@ def login():
         if conn:
             conn.close()
 
-# ✅ Save template
 @app.route('/save-template', methods=['POST'])
 def save_template():
     conn = None
@@ -164,13 +159,25 @@ def save_template():
             template_count = cursor.fetchone()[0] + 1
             template_name = f"{company_name}{template_count}"
 
-        template_json = json.dumps(template_data)
+        # Insert main template record
         cursor.execute("""
             INSERT INTO templates (client_id, template_name, template_data, created_at)
+            OUTPUT INSERTED.template_id
             VALUES (?, ?, ?, ?)
-        """, (client_id, template_name, template_json, datetime.now()))
-        conn.commit()
+        """, (client_id, template_name, json.dumps(template_data), datetime.now()))
+        template_id = cursor.fetchone()[0]
 
+        # Insert questions into template_questions
+        for section_name, questions in template_data.items():
+            for question in questions:
+                is_custom = question.startswith("[CUSTOM] ")
+                clean_question = question.replace("[CUSTOM] ", "")
+                cursor.execute("""
+                    INSERT INTO template_questions (template_id, section_name, question_text, is_custom, is_selected)
+                    VALUES (?, ?, ?, ?, 1)
+                """, (template_id, section_name, clean_question, is_custom))
+
+        conn.commit()
         return jsonify({"message": f"Template '{template_name}' saved!"}), 201
 
     except Exception as e:
@@ -182,7 +189,3 @@ def save_template():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
-
-
