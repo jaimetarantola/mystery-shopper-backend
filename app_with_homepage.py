@@ -20,10 +20,12 @@ conn_str = (
     'Trusted_Connection=yes;'
 )
 
+# Home
 @app.route('/')
 def home():
     return render_template('Client Homepage.html')
 
+# Pages
 @app.route('/register-page')
 def register_page():
     return render_template('Client_Account.html')
@@ -55,6 +57,7 @@ def shop_template_builder():
         return redirect(url_for('login_page'))
     return render_template('Client Shop Template Builder.html')
 
+# Register
 @app.route('/register', methods=['POST'])
 def register():
     conn = None
@@ -94,6 +97,7 @@ def register():
         if conn:
             conn.close()
 
+# ✅ Login restored
 @app.route('/login', methods=['POST'])
 def login():
     conn = None
@@ -126,6 +130,7 @@ def login():
         if conn:
             conn.close()
 
+# ✅ Save template
 @app.route('/save-template', methods=['POST'])
 def save_template():
     conn = None
@@ -159,25 +164,13 @@ def save_template():
             template_count = cursor.fetchone()[0] + 1
             template_name = f"{company_name}{template_count}"
 
-        # Insert main template record
+        template_json = json.dumps(template_data)
         cursor.execute("""
             INSERT INTO templates (client_id, template_name, template_data, created_at)
-            OUTPUT INSERTED.template_id
             VALUES (?, ?, ?, ?)
-        """, (client_id, template_name, json.dumps(template_data), datetime.now()))
-        template_id = cursor.fetchone()[0]
-
-        # Insert questions into template_questions
-        for section_name, questions in template_data.items():
-            for question in questions:
-                is_custom = question.startswith("[CUSTOM] ")
-                clean_question = question.replace("[CUSTOM] ", "")
-                cursor.execute("""
-                    INSERT INTO template_questions (template_id, section_name, question_text, is_custom, is_selected)
-                    VALUES (?, ?, ?, ?, 1)
-                """, (template_id, section_name, clean_question, is_custom))
-
+        """, (client_id, template_name, template_json, datetime.now()))
         conn.commit()
+
         return jsonify({"message": f"Template '{template_name}' saved!"}), 201
 
     except Exception as e:
@@ -187,5 +180,40 @@ def save_template():
         if conn:
             conn.close()
 
+@app.route('/api/client-templates')
+def get_client_templates():
+    conn = None
+    try:
+        user_email = session.get('email')
+        print("Session email:", user_email)  # Debug print
+
+        if not user_email:
+            return jsonify([])
+
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT t.template_name, t.created_at
+            FROM templates t
+            JOIN clients c ON t.client_id = c.client_id
+            WHERE LOWER(c.email) = ?
+            ORDER BY t.created_at DESC
+        """, user_email.lower())
+        rows = cursor.fetchall()
+
+        print("Templates found:", rows)  # Debug print
+
+        return jsonify([{"template_name": r[0], "created_at": r[1].isoformat()} for r in rows])
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify([])
+    finally:
+        if conn:
+            conn.close()
+
 if __name__ == '__main__':
     app.run(debug=True)
+
+
+
+
