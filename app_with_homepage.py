@@ -1,3 +1,5 @@
+
+
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -7,6 +9,66 @@ import json
 from datetime import datetime
 
 app = Flask(__name__)
+
+@app.route('/save-template', methods=['POST'])
+def save_template():
+    conn = None
+    try:
+        data = request.get_json()
+        template_data = data.get('template')
+        is_recommended_clicked = data.get('recommended', False)
+        template_id = data.get('template_id')
+
+        user_email = session.get('email')
+        if not user_email:
+            return jsonify({"error": "Not logged in"}), 401
+
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT client_id, company_name FROM clients WHERE LOWER(email) = ?", user_email.lower())
+        client = cursor.fetchone()
+        if not client:
+            return jsonify({"error": "Client not found"}), 404
+
+        client_id, company_name = client
+        template_json = json.dumps(template_data)
+
+        if template_id:
+            cursor.execute("""
+                UPDATE templates
+                SET template_data = ?, created_at = ?
+                WHERE template_id = ? AND client_id = ?
+            """, (template_json, datetime.now(), template_id, client_id))
+            conn.commit()
+            return jsonify({"message": "Template updated."}), 200
+
+        recommended_name = "Recommended"
+        if is_recommended_clicked:
+            cursor.execute("SELECT 1 FROM templates WHERE client_id = ? AND template_name = ?", client_id, recommended_name)
+            if cursor.fetchone():
+                return jsonify({"error": "You already have a Recommended Template saved."}), 409
+            template_name = recommended_name
+        else:
+            cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
+            template_count = cursor.fetchone()[0] + 1
+            template_name = f"{company_name}{template_count}"
+
+        cursor.execute("""
+            INSERT INTO templates (client_id, template_name, template_data, created_at)
+            VALUES (?, ?, ?, ?)
+        """, (client_id, template_name, template_json, datetime.now()))
+        conn.commit()
+
+        return jsonify({"message": f"Template '{template_name}' saved!"}), 201
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
 app.secret_key = 'supersecretkey123'
 CORS(app)
 
@@ -129,52 +191,6 @@ def login():
         if conn:
             conn.close()
 
-@app.route('/save-template', methods=['POST'])
-def save_template():
-    conn = None
-    try:
-        data = request.get_json()
-        template_data = data.get('template')
-        is_recommended_clicked = data.get('recommended', False)
-
-        user_email = session.get('email')
-        if not user_email:
-            return jsonify({"error": "Not logged in"}), 401
-
-        conn = pyodbc.connect(conn_str)
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT client_id, company_name FROM clients WHERE LOWER(email) = ?", user_email.lower())
-        client = cursor.fetchone()
-        if not client:
-            return jsonify({"error": "Client not found"}), 404
-
-        client_id, company_name = client
-        recommended_name = "Recommended"
-
-        if is_recommended_clicked:
-            cursor.execute("SELECT 1 FROM templates WHERE client_id = ? AND template_name = ?", client_id, recommended_name)
-            if cursor.fetchone():
-                return jsonify({"error": "You already have a Recommended Template saved."}), 409
-            template_name = recommended_name
-        else:
-            cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
-            template_count = cursor.fetchone()[0] + 1
-            template_name = f"{company_name}{template_count}"
-
-        template_json = json.dumps(template_data)
-        cursor.execute("""
-            INSERT INTO templates (client_id, template_name, template_data, created_at)
-            VALUES (?, ?, ?, ?)
-        """, (client_id, template_name, template_json, datetime.now()))
-        conn.commit()
-
-        return jsonify({"message": f"Template '{template_name}' saved!"}), 201
-
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-    finally:
         if conn:
             conn.close()
 
@@ -311,3 +327,36 @@ def rename_template(template_id):
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+
+@app.route('/edit-template/<int:template_id>')
+def edit_template(template_id):
+    if 'email' not in session:
+        return redirect(url_for('login_page'))
+
+    conn = None
+    try:
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT template_name, template_data
+            FROM templates
+            WHERE template_id = ?
+        """, template_id)
+        row = cursor.fetchone()
+        if not row:
+            return "Template not found", 404
+
+        template_name, template_data = row
+        parsed_data = json.loads(template_data)
+
+        return render_template('Client Shop Template Builder.html',
+                               template_id=template_id,
+                               template_name=template_name,
+                               template_data=parsed_data)
+    except Exception as e:
+        traceback.print_exc()
+        return "An error occurred", 500
+    finally:
+        if conn:
+            conn.close()
