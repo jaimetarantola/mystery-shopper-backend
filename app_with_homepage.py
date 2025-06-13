@@ -185,7 +185,7 @@ def get_client_templates():
     conn = None
     try:
         user_email = session.get('email')
-        print("Session email:", user_email)  # Debug print
+        print("Session email:", user_email)
 
         if not user_email:
             return jsonify([])
@@ -193,7 +193,7 @@ def get_client_templates():
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT t.template_name, t.created_at
+            SELECT t.template_id, t.template_name, t.created_at
             FROM templates t
             JOIN clients c ON t.client_id = c.client_id
             WHERE LOWER(c.email) = ?
@@ -201,15 +201,48 @@ def get_client_templates():
         """, user_email.lower())
         rows = cursor.fetchall()
 
-        print("Templates found:", rows)  # Debug print
+        print("Templates found:", rows)
 
-        return jsonify([{"template_name": r[0], "created_at": r[1].isoformat()} for r in rows])
+        return jsonify([
+            {
+                "template_id": r[0],
+                "template_name": r[1],
+                "created_at": r[2].isoformat()
+            } for r in rows
+        ])
     except Exception as e:
         traceback.print_exc()
         return jsonify([])
     finally:
         if conn:
             conn.close()
+
+@app.route('/template/<int:template_id>')
+def view_template(template_id):
+    conn = None
+    try:
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT template_name, template_data
+            FROM templates
+            WHERE template_id = ?
+        """, template_id)
+        row = cursor.fetchone()
+        if not row:
+            return "Template not found", 404
+
+        template_name, template_data = row
+        parsed_data = json.loads(template_data)
+
+        return render_template('view_template.html', template_name=template_name, template_data=parsed_data)
+    except Exception as e:
+        traceback.print_exc()
+        return "An error occurred", 500
+    finally:
+        if conn:
+            conn.close()
+
 
 if __name__ == '__main__':
     app.run(debug=True)
