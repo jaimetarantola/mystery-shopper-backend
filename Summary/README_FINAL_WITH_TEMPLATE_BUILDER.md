@@ -94,7 +94,6 @@ CREATE TABLE clients (
     client_phone VARCHAR(20),
     password_hash TEXT
 );
-Let me know if you want me to include SQL for shop templates or link this README to GitHub formatting!
 
 
 
