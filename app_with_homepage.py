@@ -1,5 +1,3 @@
-
-
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -9,72 +7,15 @@ import json
 from datetime import datetime
 
 app = Flask(__name__)
-
-@app.route('/save-template', methods=['POST'])
-def save_template():
-    conn = None
-    try:
-        data = request.get_json()
-        template_data = data.get('template')
-        is_recommended_clicked = data.get('recommended', False)
-        template_id = data.get('template_id')
-
-        user_email = session.get('email')
-        if not user_email:
-            return jsonify({"error": "Not logged in"}), 401
-
-        conn = pyodbc.connect(conn_str)
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT client_id, company_name FROM clients WHERE LOWER(email) = ?", user_email.lower())
-        client = cursor.fetchone()
-        if not client:
-            return jsonify({"error": "Client not found"}), 404
-
-        client_id, company_name = client
-        template_json = json.dumps(template_data)
-
-        if template_id:
-            cursor.execute("""
-                UPDATE templates
-                SET template_data = ?, created_at = ?
-                WHERE template_id = ? AND client_id = ?
-            """, (template_json, datetime.now(), template_id, client_id))
-            conn.commit()
-            return jsonify({"message": "Template updated."}), 200
-
-        recommended_name = "Recommended"
-        if is_recommended_clicked:
-            cursor.execute("SELECT 1 FROM templates WHERE client_id = ? AND template_name = ?", client_id, recommended_name)
-            if cursor.fetchone():
-                return jsonify({"error": "You already have a Recommended Template saved."}), 409
-            template_name = recommended_name
-        else:
-            cursor.execute("SELECT COUNT(*) FROM templates WHERE client_id = ?", client_id)
-            template_count = cursor.fetchone()[0] + 1
-            template_name = f"{company_name}{template_count}"
-
-        cursor.execute("""
-            INSERT INTO templates (client_id, template_name, template_data, created_at)
-            VALUES (?, ?, ?, ?)
-        """, (client_id, template_name, template_json, datetime.now()))
-        conn.commit()
-
-        return jsonify({"message": f"Template '{template_name}' saved!"}), 201
-
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if conn:
-            conn.close()
-
 app.secret_key = 'supersecretkey123'
 CORS(app)
 
-# SQL Server config
+# =========================
+# SQL Server Configuration
+# =========================
 server = 'DESKTOP-GANGRVA'
 database = 'mystery_shopper'
+
 conn_str = (
     'DRIVER={ODBC Driver 17 for SQL Server};'
     f'SERVER={server};'
@@ -82,12 +23,13 @@ conn_str = (
     'Trusted_Connection=yes;'
 )
 
-# Home
+# =========================
+# Home & Pages
+# =========================
 @app.route('/')
 def home():
     return render_template('Client Homepage.html')
 
-# Pages
 @app.route('/register-page')
 def register_page():
     return render_template('Client_Account.html')
@@ -100,7 +42,8 @@ def login_page():
 def dashboard():
     if 'email' not in session:
         return redirect(url_for('home'))
-    return render_template('client_dashboard_mockup.html', company_name=session.get('company_name'))
+    return render_template('client_dashboard_mockup.html',
+                           company_name=session.get('company_name'))
 
 @app.route('/logout')
 def logout():
@@ -119,17 +62,20 @@ def shop_template_builder():
         return redirect(url_for('login_page'))
     return render_template('Client Shop Template Builder.html')
 
-# Register
+# =========================
+# Auth Routes
+# =========================
 @app.route('/register', methods=['POST'])
 def register():
     conn = None
     try:
         data = request.get_json()
+        email = data['email'].strip().lower()
+
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
 
-        email = data['email'].strip().lower()
-        cursor.execute("SELECT * FROM clients WHERE LOWER(email) = ?", email)
+        cursor.execute("SELECT 1 FROM clients WHERE LOWER(email) = ?", email)
         if cursor.fetchone():
             return jsonify({"error": "Email already registered"}), 409
 
@@ -143,10 +89,13 @@ def register():
             INSERT INTO clients (
                 company_name, company_address, company_city, company_state, company_zip,
                 client_first_name, client_last_name, email, client_phone, password_hash
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            data['company_name'], data['company_address'], data['company_city'], data['company_state'], data['company_zip'],
-            data['client_first_name'], data['client_last_name'], email, data['client_phone'], hashed_password
+            data['company_name'], data['company_address'], data['company_city'],
+            data['company_state'], data['company_zip'],
+            data['client_first_name'], data['client_last_name'],
+            email, data['client_phone'], hashed_password
         ))
 
         conn.commit()
@@ -169,20 +118,20 @@ def login():
 
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
-        cursor.execute("SELECT password_hash, company_name FROM clients WHERE LOWER(email) = ?", email)
+
+        cursor.execute(
+            "SELECT password_hash, company_name FROM clients WHERE LOWER(email) = ?",
+            email
+        )
         row = cursor.fetchone()
 
-        if not row:
-            return jsonify({"error": "Invalid email or password"}), 401
-
-        hashed_password, company_name = row
-        if not check_password_hash(hashed_password, password):
+        if not row or not check_password_hash(row[0], password):
             return jsonify({"error": "Invalid email or password"}), 401
 
         session['email'] = email
-        session['company_name'] = company_name
+        session['company_name'] = row[1]
 
-        return jsonify({"message": "Login successful", "company_name": company_name}), 200
+        return jsonify({"message": "Login successful"}), 200
 
     except Exception as e:
         traceback.print_exc()
@@ -191,6 +140,75 @@ def login():
         if conn:
             conn.close()
 
+# =========================
+# Template Routes
+# =========================
+@app.route('/save-template', methods=['POST'])
+def save_template():
+    conn = None
+    try:
+        data = request.get_json()
+        template_data = data.get('template')
+        is_recommended = data.get('recommended', False)
+        template_id = data.get('template_id')
+
+        user_email = session.get('email')
+        if not user_email:
+            return jsonify({"error": "Not logged in"}), 401
+
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT client_id, company_name
+            FROM clients
+            WHERE LOWER(email) = ?
+        """, user_email.lower())
+
+        client = cursor.fetchone()
+        if not client:
+            return jsonify({"error": "Client not found"}), 404
+
+        client_id, company_name = client
+        template_json = json.dumps(template_data)
+
+        if template_id:
+            cursor.execute("""
+                UPDATE templates
+                SET template_data = ?, created_at = ?
+                WHERE template_id = ? AND client_id = ?
+            """, (template_json, datetime.now(), template_id, client_id))
+            conn.commit()
+            return jsonify({"message": "Template updated."}), 200
+
+        if is_recommended:
+            template_name = "Recommended"
+            cursor.execute("""
+                SELECT 1 FROM templates
+                WHERE client_id = ? AND template_name = ?
+            """, client_id, template_name)
+            if cursor.fetchone():
+                return jsonify({"error": "Recommended template already exists"}), 409
+        else:
+            cursor.execute(
+                "SELECT COUNT(*) FROM templates WHERE client_id = ?",
+                client_id
+            )
+            count = cursor.fetchone()[0] + 1
+            template_name = f"{company_name}{count}"
+
+        cursor.execute("""
+            INSERT INTO templates (client_id, template_name, template_data, created_at)
+            VALUES (?, ?, ?, ?)
+        """, (client_id, template_name, template_json, datetime.now()))
+
+        conn.commit()
+        return jsonify({"message": f"Template '{template_name}' saved!"}), 201
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    finally:
         if conn:
             conn.close()
 
@@ -199,13 +217,12 @@ def get_client_templates():
     conn = None
     try:
         user_email = session.get('email')
-        print("Session email:", user_email)
-
         if not user_email:
             return jsonify([])
 
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
+
         cursor.execute("""
             SELECT t.template_id, t.template_name, t.created_at
             FROM templates t
@@ -213,9 +230,8 @@ def get_client_templates():
             WHERE LOWER(c.email) = ?
             ORDER BY t.created_at DESC
         """, user_email.lower())
-        rows = cursor.fetchall()
 
-        print("Templates found:", rows)
+        rows = cursor.fetchall()
 
         return jsonify([
             {
@@ -224,7 +240,8 @@ def get_client_templates():
                 "created_at": r[2].isoformat()
             } for r in rows
         ])
-    except Exception as e:
+
+    except Exception:
         traceback.print_exc()
         return jsonify([])
     finally:
@@ -237,22 +254,60 @@ def view_template(template_id):
     try:
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
+
         cursor.execute("""
             SELECT template_name, template_data
             FROM templates
             WHERE template_id = ?
         """, template_id)
+
         row = cursor.fetchone()
         if not row:
             return "Template not found", 404
 
-        template_name, template_data = row
-        parsed_data = json.loads(template_data)
+        return render_template(
+            'view_template.html',
+            template_name=row[0],
+            template_data=json.loads(row[1])
+        )
 
-        return render_template('view_template.html', template_name=template_name, template_data=parsed_data)
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
-        return "An error occurred", 500
+        return "Error loading template", 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/edit-template/<int:template_id>')
+def edit_template(template_id):
+    if 'email' not in session:
+        return redirect(url_for('login_page'))
+
+    conn = None
+    try:
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT template_name, template_data
+            FROM templates
+            WHERE template_id = ?
+        """, template_id)
+
+        row = cursor.fetchone()
+        if not row:
+            return "Template not found", 404
+
+        return render_template(
+            'Client Shop Template Builder.html',
+            template_id=template_id,
+            template_name=row[0],
+            template_data=json.loads(row[1])
+        )
+
+    except Exception:
+        traceback.print_exc()
+        return "Error loading template", 500
     finally:
         if conn:
             conn.close()
@@ -264,17 +319,15 @@ def delete_template(template_id):
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
 
-        # ✅ First delete dependent rows in template_questions
         cursor.execute("DELETE FROM template_questions WHERE template_id = ?", template_id)
-
-        # ✅ Then delete the template itself
         cursor.execute("DELETE FROM templates WHERE template_id = ?", template_id)
-
         conn.commit()
+
         return '', 204
-    except Exception as e:
+
+    except Exception:
         traceback.print_exc()
-        return 'Error deleting template', 500
+        return "Error deleting template", 500
     finally:
         if conn:
             conn.close()
@@ -287,7 +340,7 @@ def rename_template(template_id):
         new_name = data.get('new_name', '').strip()
 
         if not new_name:
-            return jsonify({"error": "New name is required"}), 400
+            return jsonify({"error": "New name required"}), 400
 
         user_email = session.get('email')
         if not user_email:
@@ -299,64 +352,33 @@ def rename_template(template_id):
         cursor.execute("""
             SELECT client_id FROM clients WHERE LOWER(email) = ?
         """, user_email.lower())
-        row = cursor.fetchone()
+        client_id = cursor.fetchone()[0]
 
-        if not row:
-            return jsonify({"error": "Client not found"}), 404
-
-        client_id = row[0]
         cursor.execute("""
-            SELECT 1 FROM templates WHERE client_id = ? AND template_name = ? AND template_id != ?
+            SELECT 1 FROM templates
+            WHERE client_id = ? AND template_name = ? AND template_id != ?
         """, (client_id, new_name, template_id))
 
         if cursor.fetchone():
-            return jsonify({"error": "Template name already in use"}), 409
+            return jsonify({"error": "Template name already exists"}), 409
 
         cursor.execute("""
-            UPDATE templates SET template_name = ? WHERE template_id = ?
+            UPDATE templates SET template_name = ?
+            WHERE template_id = ?
         """, (new_name, template_id))
+
         conn.commit()
         return '', 204
 
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Rename failed"}), 500
     finally:
         if conn:
             conn.close()
 
+# =========================
+# Run App
+# =========================
 if __name__ == '__main__':
     app.run(debug=True)
-
-
-@app.route('/edit-template/<int:template_id>')
-def edit_template(template_id):
-    if 'email' not in session:
-        return redirect(url_for('login_page'))
-
-    conn = None
-    try:
-        conn = pyodbc.connect(conn_str)
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT template_name, template_data
-            FROM templates
-            WHERE template_id = ?
-        """, template_id)
-        row = cursor.fetchone()
-        if not row:
-            return "Template not found", 404
-
-        template_name, template_data = row
-        parsed_data = json.loads(template_data)
-
-        return render_template('Client Shop Template Builder.html',
-                               template_id=template_id,
-                               template_name=template_name,
-                               template_data=parsed_data)
-    except Exception as e:
-        traceback.print_exc()
-        return "An error occurred", 500
-    finally:
-        if conn:
-            conn.close()
